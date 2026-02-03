@@ -6,55 +6,50 @@ require("dotenv").config();
 
 const router = express.Router();
 
-// Register (STUDENTS ONLY)
-router.post("/register", async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+/**
+ * OPTION A:
+ * Students do NOT self-register.
+ * Admin creates student accounts from admin panel.
+ */
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields required" });
-    }
-
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(409).json({ message: "Email already exists" });
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    await User.create({
-      name,
-      email,
-      passwordHash,
-      role: "student", // 🔒 FORCE student
-    });
-
-    res.status(201).json({ message: "Student registered" });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
-// Login
+// Login (student or admin)
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: "email, password required" });
+    const { studentId, password } = req.body;
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!studentId || !password) {
+      return res.status(400).json({ message: "studentId & password required" });
+    }
+
+    const user = await User.findOne({ studentId: studentId.trim() });
+
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (!user.isActive) return res.status(403).json({ message: "Account disabled" });
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
     const token = jwt.sign(
-      { userId: user._id.toString(), role: user.role, name: user.name },
+      {
+        userId: user._id.toString(),
+        role: user.role,
+        name: user.name,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     return res.json({
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: {
+        id: user._id,
+        role: user.role,
+        name: user.name,
+        studentId: user.studentId,
+        department: user.department,
+        classLevel: user.classLevel,
+        isActive: user.isActive,
+      },
     });
   } catch (e) {
     return res.status(500).json({ message: "Server error", error: String(e) });

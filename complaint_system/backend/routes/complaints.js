@@ -61,7 +61,7 @@ router.get("/mine", auth, requireRole("student"), async (req, res) => {
 router.get("/", auth, requireRole("admin"), async (req, res) => {
   try {
     const list = await Complaint.find()
-      .populate("studentId", "name email")
+      .populate("studentId", "name studentId department classLevel isActive")
       .sort({ createdAt: -1 });
 
     return res.json(list);
@@ -100,7 +100,10 @@ router.put("/:id/status", auth, requireRole("admin"), async (req, res) => {
 
     await complaint.save();
 
-    const populated = await complaint.populate("studentId", "name email");
+  const populated = await complaint.populate(
+  "studentId",
+  "name studentId department classLevel isActive"
+);
 
     return res.json(populated);
   } catch (e) {

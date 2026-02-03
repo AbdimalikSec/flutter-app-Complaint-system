@@ -21,6 +21,11 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   bool loading = false;
 
   Future<void> submit() async {
+    if (titleCtrl.text.trim().isEmpty || descCtrl.text.trim().isEmpty) {
+      await showMsg(context, "Please enter title and description");
+      return;
+    }
+
     setState(() => loading = true);
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -68,29 +73,51 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            DropdownButtonFormField<String>(
-              initialValue: category,
-              decoration: const InputDecoration(labelText: "Category"),
-              items: const [
-                DropdownMenuItem(value: "Academic", child: Text("Academic")),
-                DropdownMenuItem(value: "Facility", child: Text("Facility")),
-                DropdownMenuItem(value: "IT", child: Text("IT")),
-                DropdownMenuItem(value: "Other", child: Text("Other")),
-              ],
-              onChanged: (v) => setState(() => category = v ?? "Academic"),
-            ),
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: "Title"),
-            ),
-            TextField(
-              controller: descCtrl,
-              maxLines: 5,
-              decoration: const InputDecoration(labelText: "Description"),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: category,
+                      decoration: const InputDecoration(
+                        labelText: "Category",
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: "Academic", child: Text("Academic")),
+                        DropdownMenuItem(value: "Facility", child: Text("Facility")),
+                        DropdownMenuItem(value: "IT", child: Text("IT")),
+                        DropdownMenuItem(value: "Other", child: Text("Other")),
+                      ],
+                      onChanged: (v) => setState(() => category = v ?? "Academic"),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(
+                        labelText: "Title",
+                        prefixIcon: Icon(Icons.title_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descCtrl,
+                      maxLines: 6,
+                      decoration: const InputDecoration(
+                        labelText: "Description",
+                        alignLabelWithHint: true,
+                        prefixIcon: Icon(Icons.description_outlined),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
+              height: 48,
               child: ElevatedButton(
                 onPressed: loading ? null : submit,
                 child: Text(loading ? "Submitting..." : "Submit"),

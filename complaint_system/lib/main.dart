@@ -3,17 +3,10 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
-import 'theme/app_theme.dart';
+import 'theme/app_theme.dart'; // adjust path if different
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -21,11 +14,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Complaint System',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme, // ✅ THEME APPLIED
-      home: const LoginScreen(),
+    return MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false, // ✅ removes the red DEBUG banner
+        title: 'Complaint System',
+        theme: AppTheme.lightTheme,
+        home: const LoginScreen(),
+      ),
     );
   }
 }

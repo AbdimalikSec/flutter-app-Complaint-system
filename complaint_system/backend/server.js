@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
 const complaintRoutes = require("./routes/complaints");
+const adminUsersRoutes = require("./routes/adminUsers"); // ✅ NEW
 
 const app = express();
 app.use(cors());
@@ -14,6 +15,7 @@ app.get("/", (req, res) => res.json({ message: "API running" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
+app.use("/api/admin/users", adminUsersRoutes); // ✅ NEW
 
 mongoose
   .connect(process.env.MONGO_URI)

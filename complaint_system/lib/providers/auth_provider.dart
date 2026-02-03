@@ -5,60 +5,73 @@ import 'package:http/http.dart' as http;
 import '../config/api.dart';
 
 class AuthProvider with ChangeNotifier {
-  String _token = "";
-  String _role = "";
-  String _name = "";
+  String? _token;
+  String _role = "student";
 
-  // ---------------- GETTERS ----------------
-  String get token => _token;
-  String get role => _role;
-  String get name => _name;
+  String? studentId;
+  String? name;
+  String? department;
+  String? classLevel;
+  bool isActive = true;
 
-  bool get isLoggedIn => _token.isNotEmpty;
+  bool get isLoggedIn => _token != null && _token!.isNotEmpty;
   bool get isAdmin => _role == "admin";
+  String get role => _role;
 
-  // ---------------- LOGIN ----------------
-  Future<bool> login(String email, String password) async {
+  String? get token => _token;
+
+  // ✅ Used by every authenticated request
+  Map<String, String> authHeaders() {
+    return {
+      "Content-Type": "application/json",
+      if (_token != null) "Authorization": "Bearer $_token",
+    };
+  }
+
+  Future<bool> login(String studentIdInput, String password) async {
     try {
-      final res = await http.post(
-        Uri.parse("$baseUrl/api/auth/login"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": email.trim(),
-          "password": password,
-        }),
-      );
+      final res = await http
+          .post(
+            Uri.parse("$baseUrl/api/auth/login"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "studentId": studentIdInput.trim(),
+              "password": password,
+            }),
+          )
+          .timeout(apiTimeout);
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
+      if (res.statusCode != 200) return false;
 
-        _token = data["token"];
-        _role = data["user"]["role"];
-        _name = data["user"]["name"];
+      final data = jsonDecode(res.body);
 
-        notifyListeners();
-        return true;
-      } else {
-        return false;
-      }
-    } catch (_) {
+      _token = data["token"];
+      _role = (data["user"]["role"] ?? "student").toString();
+
+      name = data["user"]["name"]?.toString();
+      studentId = data["user"]["studentId"]?.toString();
+      department = data["user"]["department"]?.toString();
+      classLevel = data["user"]["classLevel"]?.toString();
+      isActive = data["user"]["isActive"] == true;
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint("LOGIN ERROR: $e");
       return false;
     }
   }
 
-  // ---------------- LOGOUT ----------------
   void logout() {
-    _token = "";
-    _role = "";
-    _name = "";
-    notifyListeners();
-  }
+    _token = null;
+    _role = "student";
 
-  // ---------------- AUTH HEADER ----------------
-  Map<String, String> authHeaders() {
-    return {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $_token",
-    };
+    studentId = null;
+    name = null;
+    department = null;
+    classLevel = null;
+    isActive = true;
+
+    notifyListeners();
   }
 }

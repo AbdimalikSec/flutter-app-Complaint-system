@@ -15,7 +15,7 @@ async function createAdmin() {
     role: "admin",
   });
 
-  console.log("✅ Admin created");
+  console.log(" Admin created");
   process.exit();
 }
 

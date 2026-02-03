@@ -18,7 +18,9 @@ class _MyComplaintsTabState extends State<MyComplaintsTab> {
   bool loading = true;
   List complaints = [];
 
-  Future<void> loadComplaints() async {
+  Future<void> loadComplaints({bool silent = false}) async {
+    if (!silent) setState(() => loading = true);
+
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
     try {
@@ -71,7 +73,7 @@ class _MyComplaintsTabState extends State<MyComplaintsTab> {
                 final date = DateTime.parse(h["date"]);
                 return ListTile(
                   leading: const Icon(Icons.timeline),
-                  title: Text(h["status"]),
+                  title: Text(h["status"].toString()),
                   subtitle: Text(
                     "${date.day}/${date.month}/${date.year} "
                     "${date.hour}:${date.minute.toString().padLeft(2, '0')}",
@@ -96,25 +98,39 @@ class _MyComplaintsTabState extends State<MyComplaintsTab> {
     if (loading) return const Center(child: CircularProgressIndicator());
 
     if (complaints.isEmpty) {
-      return const Center(child: Text("No complaints found"));
+      return RefreshIndicator(
+        onRefresh: () => loadComplaints(silent: true),
+        child: ListView(
+          children: const [
+            SizedBox(height: 200),
+            Center(child: Text("No complaints found")),
+          ],
+        ),
+      );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: complaints.length,
-      itemBuilder: (context, i) {
-        final c = complaints[i];
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.report_problem_outlined),
-            title: Text(c["title"] ?? ""),
-            subtitle: Text("${c["category"]} • Status: ${c["status"]}"),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                showTimeline(context, c["statusHistory"] ?? [], c["status"]),
-          ),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: () => loadComplaints(silent: true),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: complaints.length,
+        itemBuilder: (context, i) {
+          final c = complaints[i];
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.report_problem_outlined),
+              title: Text((c["title"] ?? "").toString()),
+              subtitle: Text("${c["category"]} • Status: ${c["status"]}"),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showTimeline(
+                context,
+                (c["statusHistory"] ?? []) as List,
+                (c["status"] ?? "").toString(),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

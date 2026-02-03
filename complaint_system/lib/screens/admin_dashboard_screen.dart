@@ -7,6 +7,10 @@ import '../config/api.dart';
 import '../providers/auth_provider.dart';
 import '../utilts/helpers.dart';
 import 'login_screen.dart';
+import 'admin_users_screen.dart';
+import 'admin_departments_screen.dart';
+import 'admin_reports_screen.dart';
+import 'complaint_details_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -16,6 +20,9 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  int _currentTab = 0;
+
+  // ---------- Complaints tab state ----------
   bool loading = true;
   List allComplaints = [];
   List filteredComplaints = [];
@@ -26,8 +33,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   final searchCtrl = TextEditingController();
 
-  // ================= LOAD =================
-  Future<void> loadComplaints() async {
+  // ---------- Load complaints ----------
+  Future<void> loadComplaints({bool silent = false}) async {
+    if (!silent) setState(() => loading = true);
+
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
     try {
@@ -40,94 +49,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       if (res.statusCode == 200) {
         allComplaints = jsonDecode(res.body);
-        applyFilters();
+        applyFilters(silent: true);
       } else {
         allComplaints = [];
+        filteredComplaints = [];
         await showMsg(context, "Failed to load complaints");
       }
     } catch (e) {
       allComplaints = [];
+      filteredComplaints = [];
       if (mounted) await showMsg(context, "Error: $e");
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
 
-  // ================= FILTER LOGIC =================
-  void applyFilters() {
+  void applyFilters({bool silent = false}) {
     filteredComplaints = allComplaints.where((c) {
-      final matchesSearch = c["title"]
+      final matchesSearch = (c["title"] ?? "")
           .toString()
           .toLowerCase()
           .contains(searchText.toLowerCase());
 
-      final matchesStatus =
-          statusFilter == "All" || c["status"] == statusFilter;
-
-      final matchesCategory =
-          categoryFilter == "All" || c["category"] == categoryFilter;
+      final matchesStatus = statusFilter == "All" || c["status"] == statusFilter;
+      final matchesCategory = categoryFilter == "All" || c["category"] == categoryFilter;
 
       return matchesSearch && matchesStatus && matchesCategory;
     }).toList();
 
-    setState(() {});
-  }
-
-  // ================= UPDATE STATUS =================
-  Future<void> updateStatus(String id, String status) async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-
-    await http.put(
-      Uri.parse("$baseUrl/api/complaints/$id/status"),
-      headers: auth.authHeaders(),
-      body: jsonEncode({ "status": status }),
-    );
-
-    loadComplaints();
-  }
-
-  // ================= TIMELINE =================
-  void showTimeline(BuildContext context, List history, String currentStatus) {
-    final safeHistory = history.isEmpty
-        ? [
-            {
-              "status": currentStatus,
-              "date": DateTime.now().toIso8601String(),
-            }
-          ]
-        : history;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Complaint Status Timeline",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ...safeHistory.map((h) {
-              final date = DateTime.parse(h["date"]);
-              return ListTile(
-                leading: const Icon(Icons.timeline),
-                title: Text(h["status"]),
-                subtitle: Text(
-                  "${date.day}/${date.month}/${date.year} "
-                  "${date.hour}:${date.minute.toString().padLeft(2, '0')}",
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
-    );
+    if (!silent) setState(() {});
   }
 
   Color _statusColor(String status) {
@@ -139,6 +89,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       default:
         return Colors.grey.shade200;
     }
+  }
+
+  String _senderId(dynamic student) {
+    if (student is Map) return (student["studentId"] ?? "-").toString();
+    return "-";
   }
 
   @override
@@ -153,13 +108,149 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     super.dispose();
   }
 
+  String _titleForTab(int i) {
+    switch (i) {
+      case 0:
+        return "Admin Dashboard";
+      case 1:
+        return "Departments";
+      case 2:
+        return "Reports";
+      case 3:
+        return "Students";
+      default:
+        return "Admin";
+    }
+  }
+
+  Widget _buildComplaintsTab() {
+    if (loading) return const Center(child: CircularProgressIndicator());
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              TextField(
+                controller: searchCtrl,
+                decoration: const InputDecoration(
+                  labelText: "Search by title",
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (v) {
+                  searchText = v;
+                  applyFilters();
+                },
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: statusFilter,
+                      items: const [
+                        DropdownMenuItem(value: "All", child: Text("All Status")),
+                        DropdownMenuItem(value: "Pending", child: Text("Pending")),
+                        DropdownMenuItem(value: "In Progress", child: Text("In Progress")),
+                        DropdownMenuItem(value: "Resolved", child: Text("Resolved")),
+                      ],
+                      onChanged: (v) {
+                        statusFilter = v!;
+                        applyFilters();
+                      },
+                      decoration: const InputDecoration(labelText: "Status"),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: categoryFilter,
+                      items: const [
+                        DropdownMenuItem(value: "All", child: Text("All Categories")),
+                        DropdownMenuItem(value: "Academic", child: Text("Academic")),
+                        DropdownMenuItem(value: "Facility", child: Text("Facility")),
+                        DropdownMenuItem(value: "IT", child: Text("IT")),
+                        DropdownMenuItem(value: "Other", child: Text("Other")),
+                      ],
+                      onChanged: (v) {
+                        categoryFilter = v!;
+                        applyFilters();
+                      },
+                      decoration: const InputDecoration(labelText: "Category"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: filteredComplaints.isEmpty
+              ? const Center(child: Text("No complaints match filters"))
+              : RefreshIndicator(
+                  onRefresh: () => loadComplaints(silent: true),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: filteredComplaints.length,
+                    itemBuilder: (context, i) {
+                      final c = filteredComplaints[i];
+                      final student = c["studentId"];
+
+                      final title = (c["title"] ?? "").toString();
+                      final category = (c["category"] ?? "").toString();
+                      final status = (c["status"] ?? "").toString();
+                      final senderId = _senderId(student);
+
+                      return Card(
+                        child: ListTile(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ComplaintDetailsScreen(complaint: c as Map),
+                              ),
+                            );
+                            loadComplaints(silent: true);
+                          },
+                          leading: const Icon(Icons.report_problem_outlined),
+                          title: Text(
+                            title,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text("Category: $category • Sender ID: $senderId"),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _statusColor(status),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(status),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
+    final pages = <Widget>[
+      _buildComplaintsTab(),
+      const AdminDepartmentsScreen(),
+      const AdminReportsScreen(),
+      const AdminUsersScreen(),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Admin Dashboard"),
+        title: Text(_titleForTab(_currentTab)),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -174,150 +265,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ],
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // 🔍 FILTER BAR
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: searchCtrl,
-                        decoration: const InputDecoration(
-                          labelText: "Search by title",
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (v) {
-                          searchText = v;
-                          applyFilters();
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: statusFilter,
-                              items: const [
-                                DropdownMenuItem(value: "All", child: Text("All Status")),
-                                DropdownMenuItem(value: "Pending", child: Text("Pending")),
-                                DropdownMenuItem(value: "In Progress", child: Text("In Progress")),
-                                DropdownMenuItem(value: "Resolved", child: Text("Resolved")),
-                              ],
-                              onChanged: (v) {
-                                statusFilter = v!;
-                                applyFilters();
-                              },
-                              decoration: const InputDecoration(labelText: "Status"),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: categoryFilter,
-                              items: const [
-                                DropdownMenuItem(value: "All", child: Text("All Categories")),
-                                DropdownMenuItem(value: "Academic", child: Text("Academic")),
-                                DropdownMenuItem(value: "Facility", child: Text("Facility")),
-                                DropdownMenuItem(value: "IT", child: Text("IT")),
-                                DropdownMenuItem(value: "Other", child: Text("Other")),
-                              ],
-                              onChanged: (v) {
-                                categoryFilter = v!;
-                                applyFilters();
-                              },
-                              decoration: const InputDecoration(labelText: "Category"),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 📋 COMPLAINT LIST
-                Expanded(
-                  child: filteredComplaints.isEmpty
-                      ? const Center(child: Text("No complaints match filters"))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: filteredComplaints.length,
-                          itemBuilder: (context, i) {
-                            final c = filteredComplaints[i];
-
-                            return Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            c["title"],
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: _statusColor(c["status"]),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(c["status"]),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text("Category: ${c["category"]}"),
-                                    const SizedBox(height: 8),
-                                    Text(c["description"]),
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.timeline),
-                                      label: const Text("View Timeline"),
-                                      onPressed: () => showTimeline(
-                                        context,
-                                        c["statusHistory"] ?? [],
-                                        c["status"],
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        OutlinedButton(
-                                          onPressed: () => updateStatus(
-                                            c["_id"],
-                                            "In Progress",
-                                          ),
-                                          child: const Text("In Progress"),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        ElevatedButton(
-                                          onPressed: () => updateStatus(
-                                            c["_id"],
-                                            "Resolved",
-                                          ),
-                                          child: const Text("Resolved"),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+      body: pages[_currentTab],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentTab,
+        onTap: (i) => setState(() => _currentTab = i),
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: "Complaints"),
+          BottomNavigationBarItem(icon: Icon(Icons.apartment_outlined), label: "Departments"),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: "Reports"),
+          BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: "Students"),
+        ],
+      ),
     );
   }
 }

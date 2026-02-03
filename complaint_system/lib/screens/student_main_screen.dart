@@ -40,7 +40,7 @@ class _StudentMainScreenState extends State<StudentMainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Student - ${auth.name} • ${_titleForIndex(_currentIndex)}",
+          "Student - ${(auth.name ?? "User")} • ${_titleForIndex(_currentIndex)}",
         ),
         actions: [
           IconButton(

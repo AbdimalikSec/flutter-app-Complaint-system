@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../utilts/helpers.dart';
-import 'register_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'student_main_screen.dart';
 
@@ -15,15 +14,24 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final emailCtrl = TextEditingController();
+  final studentIdCtrl = TextEditingController();
   final passCtrl = TextEditingController();
+
   bool loading = false;
 
   Future<void> login() async {
+    if (studentIdCtrl.text.trim().isEmpty || passCtrl.text.isEmpty) {
+      await showMsg(context, "Please enter Student ID and password");
+      return;
+    }
+
     setState(() => loading = true);
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final ok = await auth.login(emailCtrl.text.trim(), passCtrl.text);
+    final ok = await auth.login(
+      studentIdCtrl.text.trim(),
+      passCtrl.text,
+    );
 
     if (!mounted) return;
 
@@ -31,21 +39,23 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => auth.isAdmin
-              ? const AdminDashboardScreen()
-              : const StudentMainScreen(),
+          builder: (_) =>
+              auth.isAdmin ? const AdminDashboardScreen() : const StudentMainScreen(),
         ),
       );
     } else {
-      await showMsg(context, "Login failed. Check email or password.");
+      await showMsg(
+        context,
+        "Login failed. Student ID or password is incorrect.",
+      );
     }
 
-    setState(() => loading = false);
+    if (mounted) setState(() => loading = false);
   }
 
   @override
   void dispose() {
-    emailCtrl.dispose();
+    studentIdCtrl.dispose();
     passCtrl.dispose();
     super.dispose();
   }
@@ -61,21 +71,24 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircleAvatar(radius: 40, child: Icon(Icons.lock, size: 40)),
+                const CircleAvatar(
+                  radius: 40,
+                  child: Icon(Icons.lock, size: 40),
+                ),
                 const SizedBox(height: 12),
                 const Text(
-                  "Complaint System",
+                  "Campus Complaint System",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 const Text("Login to continue"),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
                 TextField(
-                  controller: emailCtrl,
+                  controller: studentIdCtrl,
                   decoration: const InputDecoration(
-                    labelText: "Email",
-                    prefixIcon: Icon(Icons.email),
+                    labelText: "Student ID",
+                    prefixIcon: Icon(Icons.badge),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -87,25 +100,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icon(Icons.lock),
                   ),
                 ),
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 20),
 
                 SizedBox(
                   width: double.infinity,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: loading ? null : login,
-                    child: Text(loading ? "Please wait..." : "Login"),
+                    child: Text(
+                      loading ? "Please wait..." : "Login",
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                    );
-                  },
-                  child: const Text("Create account"),
                 ),
               ],
             ),
