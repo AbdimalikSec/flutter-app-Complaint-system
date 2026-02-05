@@ -62,10 +62,63 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       if (res.statusCode == 200) {
         await loadUsers(silent: true);
       } else {
-        await showMsg(context, "Failed to update status");
+        final data = _safeJson(res.body);
+        await showMsg(context, data?["message"]?.toString() ?? "Failed to update status");
       }
     } catch (e) {
       if (mounted) await showMsg(context, "Error: $e");
+    }
+  }
+
+  Future<void> deleteStudent(String userId, String label) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete student?"),
+        content: Text("This will permanently delete:\n$label"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      final res = await http.delete(
+        Uri.parse("$baseUrl/api/admin/users/$userId"),
+        headers: auth.authHeaders(),
+      );
+
+      if (!mounted) return;
+
+      if (res.statusCode == 200) {
+        await showMsg(context, "Student deleted");
+        await loadUsers(silent: true);
+      } else {
+        final data = _safeJson(res.body);
+        await showMsg(context, data?["message"]?.toString() ?? "Failed to delete");
+      }
+    } catch (e) {
+      if (mounted) await showMsg(context, "Error: $e");
+    }
+  }
+
+  Map<String, dynamic>? _safeJson(String s) {
+    try {
+      final v = jsonDecode(s);
+      return v is Map<String, dynamic> ? v : null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -77,8 +130,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ No Scaffold / no AppBar (because AdminDashboard already has one)
-
     if (loading) return const Center(child: CircularProgressIndicator());
 
     return Column(
@@ -101,9 +152,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 onPressed: () async {
                   await Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CreateStudentScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CreateStudentScreen()),
                   );
                   loadUsers(silent: true);
                 },
@@ -111,7 +160,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ],
           ),
         ),
-
         Expanded(
           child: users.isEmpty
               ? RefreshIndicator(
@@ -134,19 +182,32 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       final isActive = u["isActive"] == true;
                       final dept = (u["department"] ?? "").toString();
                       final cls = (u["classLevel"] ?? "").toString();
+                      final sid = (u["studentId"] ?? "").toString();
+                      final nm = (u["name"] ?? "").toString();
+                      final id = u["_id"].toString();
 
                       final subtitleStr =
-                          "ID: ${(u["studentId"] ?? "").toString()}\n"
+                          "ID: $sid\n"
                           "${dept.isEmpty ? "" : dept} ${dept.isNotEmpty && cls.isNotEmpty ? "•" : ""} ${cls.isEmpty ? "" : cls}";
 
                       return Card(
                         child: ListTile(
-                          title: Text((u["name"] ?? "").toString()),
+                          title: Text(nm),
                           subtitle: Text(subtitleStr.trim()),
                           isThreeLine: true,
-                          trailing: Switch(
-                            value: isActive,
-                            onChanged: (_) => toggleActive(u["_id"].toString()),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: "Delete",
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => deleteStudent(id, "$nm ($sid)"),
+                              ),
+                              Switch(
+                                value: isActive,
+                                onChanged: (_) => toggleActive(id),
+                              ),
+                            ],
                           ),
                         ),
                       );

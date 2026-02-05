@@ -7,34 +7,34 @@ require("dotenv").config();
 const router = express.Router();
 
 /**
- * OPTION A:
- * Students do NOT self-register.
- * Admin creates student accounts from admin panel.
+ * Login (student or admin)
+ * - Students: studentId + password
+ * - Admins: email + password
+ * Client sends: { identifier, password }
  */
-
-// Login (student or admin)
 router.post("/login", async (req, res) => {
   try {
-    const { studentId, password } = req.body;
+    const { identifier, password } = req.body;
 
-    if (!studentId || !password) {
-      return res.status(400).json({ message: "studentId & password required" });
+    const id = String(identifier || "").trim();
+    const pw = String(password || "");
+
+    if (!id || !pw) {
+      return res.status(400).json({ message: "identifier & password required" });
     }
 
-    const user = await User.findOne({ studentId: studentId.trim() });
+    const user = await User.findOne({
+      $or: [{ studentId: id }, { email: id.toLowerCase() }],
+    });
 
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
     if (!user.isActive) return res.status(403).json({ message: "Account disabled" });
 
-    const ok = await bcrypt.compare(password, user.passwordHash);
+    const ok = await bcrypt.compare(pw, user.passwordHash);
     if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
     const token = jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role,
-        name: user.name,
-      },
+      { userId: user._id.toString(), role: user.role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -45,14 +45,15 @@ router.post("/login", async (req, res) => {
         id: user._id,
         role: user.role,
         name: user.name,
-        studentId: user.studentId,
-        department: user.department,
-        classLevel: user.classLevel,
+        studentId: user.studentId || null,
+        email: user.email || null,
+        department: user.department || null,
+        classLevel: user.classLevel || null,
         isActive: user.isActive,
       },
     });
   } catch (e) {
-    return res.status(500).json({ message: "Server error", error: String(e) });
+    return res.status(500).json({ message: "Server error", error: e.message });
   }
 });
 

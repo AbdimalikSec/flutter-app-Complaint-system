@@ -5,8 +5,18 @@ const userSchema = new mongoose.Schema(
     studentId: {
       type: String,
       unique: true,
-      sparse: true, // allows admin accounts without studentId
+      sparse: true,
       trim: true,
+    },
+
+    // Admins may have email. Students do not need it.
+    email: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+      default: undefined,
     },
 
     name: { type: String, required: true, trim: true },
@@ -22,12 +32,10 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("User", userSchema);
+// ✅ Prevent OverwriteModelError
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);

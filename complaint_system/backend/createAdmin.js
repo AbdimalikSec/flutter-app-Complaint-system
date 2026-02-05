@@ -6,11 +6,11 @@ const User = require("./models/User");
 async function createAdmin() {
   await mongoose.connect(process.env.MONGO_URI);
 
-  const passwordHash = await bcrypt.hash("admin123", 10);
+  const passwordHash = await bcrypt.hash("admin1515", 10);
 
   await User.create({
     name: "System Admin",
-    email: "admin@campus.com",
+    email: "admin@gmail.com",
     passwordHash,
     role: "admin",
   });

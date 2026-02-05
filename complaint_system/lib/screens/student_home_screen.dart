@@ -68,10 +68,7 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const CircleAvatar(
-            radius: 34,
-            child: Icon(Icons.person, size: 36),
-          ),
+          const CircleAvatar(radius: 34, child: Icon(Icons.person, size: 36)),
           const SizedBox(height: 14),
           Text(
             "Welcome, $name!",
@@ -99,7 +96,9 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
               leading: const Icon(Icons.analytics_outlined),
               title: const Text("My Complaints"),
               subtitle: Text(
-                loadingCount ? "Loading..." : "Total submitted: $complaintCount",
+                loadingCount
+                    ? "Loading..."
+                    : "Total submitted: $complaintCount",
               ),
               trailing: IconButton(
                 icon: const Icon(Icons.refresh),
@@ -119,20 +118,14 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
               onTap: () async {
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const SubmitComplaintScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const SubmitComplaintScreen(),
+                  ),
                 );
                 // refresh count when back
                 setState(() => loadingCount = true);
                 loadCount();
               },
-            ),
-          ),
-
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text("Tip"),
-              subtitle: Text("Use the bottom tabs to view complaints and profile."),
             ),
           ),
         ],

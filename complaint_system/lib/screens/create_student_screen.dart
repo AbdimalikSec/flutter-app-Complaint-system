@@ -21,19 +21,51 @@ class _CreateStudentScreenState extends State<CreateStudentScreen> {
 
   bool loading = false;
 
-  // ✅ Departments
-  final List<String> departments = const ["Computer Science", "Business", "Engineering", "Medicine"];
+  final List<String> departments = const [
+    "Computer Science",
+    "Business",
+    "Engineering",
+    "Medicine",
+  ];
 
-  // ✅ Department -> classes (3 each)
   final Map<String, List<String>> classesByDept = const {
-    "Computer Science": ["CS101 - Intro Programming", "CS205 - Data Structures", "CS310 - Mobile Development"],
-    "Business": ["BUS101 - Principles of Business", "BUS210 - Marketing", "BUS330 - Entrepreneurship"],
-    "Engineering": ["ENGR101 - Engineering Basics", "ENGR220 - Circuits", "ENGR340 - Mechanics"],
-    "Medicine": ["MED101 - Human Anatomy", "MED210 - Physiology", "MED330 - Clinical Practice"],
+    "Computer Science": [
+      "CS101 - Intro Programming",
+      "CS205 - Data Structures",
+      "CS310 - Mobile Development",
+    ],
+    "Business": [
+      "BUS101 - Principles of Business",
+      "BUS210 - Marketing",
+      "BUS330 - Entrepreneurship",
+    ],
+    "Engineering": [
+      "ENGR101 - Engineering Basics",
+      "ENGR220 - Circuits",
+      "ENGR340 - Mechanics",
+    ],
+    "Medicine": [
+      "MED101 - Human Anatomy",
+      "MED210 - Physiology",
+      "MED330 - Clinical Practice",
+    ],
   };
 
   String? selectedDepartment;
   String? selectedClass;
+
+  // --- frontend validation helpers ---
+  bool _validStudentId(String s) {
+    final v = s.trim();
+    return RegExp(r'^[A-Za-z0-9_-]{4,20}$').hasMatch(v);
+  }
+
+  bool _validName(String name) {
+    final n = name.trim();
+    if (n.length < 2 || n.length > 60) return false;
+    if (!RegExp(r'[A-Za-z]').hasMatch(n)) return false; // must contain letters
+    return RegExp(r"^[A-Za-z][A-Za-z\s.'-]*$").hasMatch(n);
+  }
 
   Future<void> create() async {
     final sid = idCtrl.text.trim();
@@ -42,6 +74,27 @@ class _CreateStudentScreenState extends State<CreateStudentScreen> {
 
     if (sid.isEmpty || fullName.isEmpty || password.isEmpty) {
       await showMsg(context, "Student ID, Name and Password are required");
+      return;
+    }
+
+    if (!_validStudentId(sid)) {
+      await showMsg(
+        context,
+        "Invalid Student ID (use 4-20 chars: letters/numbers/_/-)",
+      );
+      return;
+    }
+
+    if (!_validName(fullName)) {
+      await showMsg(
+        context,
+        "Invalid Name (must contain letters, not only numbers)",
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      await showMsg(context, "Password must be at least 6 characters");
       return;
     }
 
@@ -78,7 +131,7 @@ class _CreateStudentScreenState extends State<CreateStudentScreen> {
         Navigator.pop(context);
       } else {
         final data = jsonDecode(res.body);
-        await showMsg(context, data["message"] ?? "Failed");
+        await showMsg(context, data["message"]?.toString() ?? "Failed");
       }
     } catch (e) {
       if (!mounted) return;
@@ -98,7 +151,9 @@ class _CreateStudentScreenState extends State<CreateStudentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final classOptions = selectedDepartment == null ? <String>[] : (classesByDept[selectedDepartment] ?? []);
+    final classOptions = selectedDepartment == null
+        ? <String>[]
+        : (classesByDept[selectedDepartment] ?? []);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Create Student")),
@@ -136,7 +191,6 @@ class _CreateStudentScreenState extends State<CreateStudentScreen> {
               onChanged: (v) {
                 setState(() {
                   selectedDepartment = v;
-                  // reset class when department changes
                   selectedClass = null;
                 });
               },
